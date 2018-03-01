@@ -1,32 +1,28 @@
+#!/usr/bin/env python2.7
+# robot.py
+# Shawn Beaulieu
+
 from pyrosim import PYROSIM
-import matplotlib.pyplot as plt
 import random
 import constants as c
 import numpy as np
 import math
 
 class ROBOT:
-    def __init__(self, sim, genome, devo):
-    #def __init__(self, sim, genome, epigenome, devo)
-    #def __init__(self, sim, start_wts, end_wts, devo):
+    def __init__(self, sim, genome, target_genome, blueprint, devo, gens, g):
         # call the method from the constructor the way you would in another script.
         # "SELF" is the generic name given as input to the constructor by the user
         # at a different time and location.
+        self.offset = 0
         self.Send_Objects(sim)
         self.Send_Joints(sim)
         self.Send_Sensors(sim)
-        self.Send_Neurons(sim)
-	# Hadamard product between the genome and "epigenome"
-	#wts = np.multiply(genome, epigenome)
-  
-        # Bayesian Evolution:
-        #wts = np.zeros((13,13))
-        #for row in range(13):
-        #    for col in range(13):
-                # random sample with mean = genome[row,col] and variance = 0.05
-        #        wts[row,col] = 0.01*np.random.randn()+genome[row,col]
-
-        self.Send_Synapses(sim, genome, devo)
+        if len(blueprint) > 1:
+            self.Send_Deep_Neurons(sim, blueprint)
+        else:
+            self.Send_Neurons(sim, blueprint)
+        self.Send_Synapses(sim, genome, target_genome, blueprint, devo, gens, g)
+        #self.Send_Synapses(sim, genome, inflection, devo)
 
     def Send_Objects(self, sim):
         sim.Send_Box(objectID =0, x=0, y =0, z=c.L + c.R, length =c.L, width=c.L, height=2*c.R, r=0.5,g=0.5,b=0.5)
@@ -58,29 +54,63 @@ class ROBOT:
         sim.Send_Light_Sensor(sensorID=4, objectID=0)
         #sim.Send_Position_Sensor(sensorID=10, objectID=0)
 
-    def Send_Neurons(self, sim):
-        # Ray sensor projects out into the y-axis
-        for s in range(5):
-            sim.Send_Sensor_Neuron(neuronID=s, sensorID=s)
-        for m in range(8):
-            sim.Send_Motor_Neuron(neuronID=m+5, jointID=m, tau=0.2)
+    def Send_Deep_Neurons(self, sim, blueprint):
 
-    def Send_Synapses(self, sim, genome, targetGenome, devo=False):
-    #def Send_Synapses(self, sim, start_wts, end_wts, devo=False):
+        # ====== TODO: OPTIMIZE ======
+
+        self.Sensor_to_Hidden(sim, blueprint[0])
+        for b in blueprint[1:-1]:
+            self.Hidden_to_Hidden(sim, b)
+        self.Hidden_to_Motor(sim, blueprint[-1])
+
+    def Hidden_to_Motor(self, sim, IO):       
+        for i in range(IO[0]):
+            sim.Send_Hidden_Neuron(neuronID=i+self.offset, tau=0.1)
+        self.offset += IO[0]
+        for o in range(IO[1]):
+            sim.Send_Motor_Neuron(neuronID=o+self.offset, jointID=o, tau=0.3)
+
+    def Sensor_to_Hidden(self, sim, IO):
+        for i in range(IO[0]):
+            sim.Send_Sensor_Neuron(neuronID=i, sensorID=i)
+        self.offset += IO[0]
+        for o in range(IO[1]):
+            sim.Send_Hidden_Neuron(neuronID=o+self.offset, tau=0.1)
+        self.offset += IO[1]
+
+    def Hidden_to_Hidden(self, sim, IO):
+        for i in range(IO[0]):
+            sim.Send_Hidden_Neuron(neuronID=i+self.offset, tau=0.1)
+        self.offset += IO[0]
+        for o in range(IO[1]):
+            sim.Send_Hidden_Neuron(neuronID=o+self.offset, tau=0.1)
+        self.offset += IO[1]
+       
+    def Send_Neurons(self, sim, blueprint):
+            for s in range(blueprint[0][0]):
+                sim.Send_Sensor_Neuron(neuronID=s, sensorID=s)
+            for m in range(blueprint[0][1]):
+                sim.Send_Motor_Neuron(neuronID=m+blueprint[0][0], jointID=m, tau=0.3)
+
+    def Send_Synapses(self, sim, genome, target_genome, dropout, blueprint, devo, gens, g):
         # Establish connection between sensor neurons and motor neurons
-
-        for s in range(13):
-            for m in range(13):
-                if devo:
-                    sim.Send_Developing_Synapse(sourceNeuronID=s,targetNeuronID=m,
-					startWeight=genome[s,m], endWeight=targetGenome[s,m], startTime=0.0, endTime=random.uniform(0,1))
-                #if devo:
-                #    sim.Send_Developing_Synapse(sourceNeuronID=s,targetNeuronID=m,
-		#			startWeight=start_wts[s,m],endWeight=end_wts[s,m],startTime=0,endTime=1.0)
-                else:
-                    sim.Send_Synapse(sourceNeuronID=s, targetNeuronID=m, weight = genome[s,m])
-
-	#for s in range(5):
-        #    for m in range(8):
-        #        sim.Send_Synapse(sourceNeuronID=s, targetNeuronID=m+5, weight = wts[s,m])
-        # see how far 'into' the screen our bots go. Use y-coordinate for this
+        devo_step = 1/gens
+        #endTime = np.clip(1.0-devo_step*g, 0, 1)
+        ID_tracker = 0 # Neuron ID
+        for b in blueprint:
+            ID_tracker += b[0]
+            # layer index = "size of source layer"to"size of target layer"
+            layer = "{0}to{1}".format(b[0], b[1])
+            for I in range(b[0]):
+                for O in range(b[1]):
+                    if devo:
+                        # Development schedule depends on proximity of base to target
+                        #inflection = np.clip(np.sqrt((target_genome[layer] - genome[layer])**2),0,1)
+                        # Create synapses (developmental)
+                        sim.Send_Developing_Synapse(sourceNeuronID=I+ID_tracker-b[0], targetNeuronID=O+ID_tracker,
+			    		startWeight=genome[layer][I,O], endWeight=target_genome[layer][I,O],
+						dropTime=dropout[layer][I,O], startTime=0.0, endTime=1.0)
+                    else:
+                        # Create synapses (non-developmental)
+                        sim.Send_Synapse(sourceNeuronID=I, targetNeuronID=O+ID_tracker, weight = genome[layer][I,O])
+            ID_tracker += b[1]

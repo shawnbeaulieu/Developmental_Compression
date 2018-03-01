@@ -136,8 +136,8 @@ class HyperNEATDeveloper(object):
         self.activation_steps      = activation_steps
         self.node_type             = node_type
         
-    def convert(self, network):   
-    #def convert(self, network, task):
+    #def convert(self, network, latent_vector):   
+    def convert(self, network):
         """ Performs conversion. 
             
             :param network: Any object that is convertible to a :class:`~peas.networks.NeuralNetwork`.
@@ -165,7 +165,7 @@ class HyperNEATDeveloper(object):
             
         for (i,j), coords, conn_id, expr_id in self.substrate.get_connection_list(self.add_deltas):                
             expression = True
-            #coords = np.append(coords, task)
+            #coords = np.append(coords, latent_vector)
             if expr_id is not None:
                 network.flush()
                 expression = network.feed(coords, self.activation_steps)[expr_id] > 0

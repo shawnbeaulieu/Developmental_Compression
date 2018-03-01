@@ -1,3 +1,7 @@
+#!/usr/bin/env python2.7
+# environment.py
+# Shawn Beaulieu
+
 import random
 from pyrosim import PYROSIM
 import constants as c
@@ -18,6 +22,10 @@ class ENVIRONMENT:
 			self.Place_Light_Source_To_The_Front()
  		if ID == 1:
 			self.Place_Light_Source_To_The_Back()
+                if ID == 2:
+                        self.Place_Light_Source_To_The_Right()
+                if ID == 3: 
+                        self.Place_Light_Source_To_The_Left()
 		#print(self.l, self.w, self.h, self.x, self.y, self.z)
 	
 	def Place_Light_Source_To_The_Front(self):

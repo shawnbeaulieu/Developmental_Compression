@@ -1,0 +1,12 @@
+#PBS -j oe
+#PBS -N Run_GA
+#PBS -m a
+#PBS -m b
+#PBS -o $HOME/scratch/Run_GA_$ARG_SEED.log
+#PBS -l nodes=1:ppn=20,pmem=2gb,pvmem=2gb
+#PBS -l walltime=3:00:00
+#PBS -q shortq
+
+PATH=$HOME/anaconda2/bin:$PATH
+cd $HOME/robotics/Dev_Compression
+PYTHONPATH=$HOME/robotics/Dev_Compression/ $HOME/anaconda2/bin/python ./Run_GA.py $ARG_SEED

@@ -1,3 +1,5 @@
+#!/usr/bin/env python2.7
+
 import math
 import sys
 import numpy as np
@@ -690,7 +692,7 @@ class PYROSIM:
 
 	def Send_Developing_Synapse(self, sourceNeuronID=0, targetNeuronID=0, 
 								startWeight=0.0, endWeight=0.0, 
-								startTime=0., endTime=1.0):
+								dropTime=10.0, startTime=0., endTime=1.0):
 		"""Sends a synapse to the simulator
 
 		Developing synapses are synapses which change over time. 
@@ -737,6 +739,8 @@ class PYROSIM:
 		outputString = outputString + ' ' + str(startWeight)
 
 		outputString = outputString + ' ' + str(endWeight)
+
+		outputString = outputString + ' ' + str(dropTime)
 
 		outputString = outputString + ' ' + str(startTime)
 
@@ -857,17 +861,15 @@ class PYROSIM:
 		self.dataFromPython = np.zeros([self.numSensors,4,self.evaluationTime],dtype='f')
 
 		if self.debug:
-			print dataFromSimulator[1]
+			print dataFromSimulator[0], dataFromSimulator[1], dataFromSimulator
 
 		dataFromSimulator = dataFromSimulator[0]
 
 		dataFromSimulator = dataFromSimulator.split()
 
 		index = 0
-
 		if ( dataFromSimulator == [] ):
 			return
-
 		while ( dataFromSimulator[index] != 'Done' ):
 			ID = int( dataFromSimulator[index] )
 			index = index + 1
@@ -875,7 +877,6 @@ class PYROSIM:
 			numSensorValues = int( dataFromSimulator[index] ) 
 
 			index = index + 1
-
 			for t in range(0,self.evaluationTime):
 
 				for s in range(0,numSensorValues):
@@ -883,7 +884,6 @@ class PYROSIM:
 					sensorValue = float( dataFromSimulator[index] )
 
 					self.dataFromPython[ID,s,t] = sensorValue
-
 					index = index + 1
 
 	def _Send(self,string_to_send):

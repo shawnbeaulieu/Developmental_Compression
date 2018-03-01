@@ -56,9 +56,9 @@ class SimplePopulation(object):
         self.max_cores              = max_cores
 
         cpus = multiprocessing.cpu_count()
-        use_cores = min(self.max_cores, cpus-1)
-        if use_cores > 1:
-            self.pool = multiprocessing.Pool(processes=use_cores, maxtasksperchild=5)
+        #use_cores = min(self.max_cores, cpus-1)
+        if cpus > 1:
+            self.pool = multiprocessing.Pool(processes=cpus-1)
         else:
             self.pool = None
         

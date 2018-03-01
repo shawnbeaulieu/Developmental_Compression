@@ -1,23 +1,24 @@
+#!/usr/bin/env python2.7
+# individual.py
+# Shawn Beaulieu
+
 from pyrosim import PYROSIM
-import matplotlib.pyplot as plt
 import random
 import math
 import numpy as np
+import pandas as pd
 import constants as c
 from robot import ROBOT
 
 class INDIVIDUAL:
-	def __init__(self, genome, devo):
-        #def __init__(self, genome, epigenome, devo):
+        def __init__(self, genome, target_genome, blueprint, devo, gens, g):
 
-		# Compression: Two objectives (1) maximize fitness in both
-		# environments; (2) minimize difference between front and
-		# back genomes
-		self.genome = genome
-		#self.targetGenome = targetGenome
+                self.genome = genome
+		self.target_genome = target_genome
                 self.devo = devo
-                #self.fitness_T1 = 0
-		#self.fitness_T2 = 0
+                self.blueprint = blueprint
+                self.gens = gens
+                self.g = g
 		self.fitness = 0
                 self.env_tracker = None
 
@@ -30,8 +31,7 @@ class INDIVIDUAL:
 
 		self.env_tracker = env_tracker
                 self.sim = PYROSIM(playPaused=pp, evalTime=1000, debug=False, playBlind=pb)
-		robot = ROBOT(self.sim, self.genome, self.devo)
-                #robot = ROBOT(self.sim, self.genome, self.targetGenome, self.devo)
+		robot = ROBOT(self.sim, self.genome, self.target_genome, self.blueprint, self.devo, self.gens, self.g)
                 env.Send_To(self.sim)
                 self.sim.Start()
                 # For running program in ipython, set ipy=True
@@ -57,56 +57,59 @@ class INDIVIDUAL:
                 
                 self.Motor_Data = {
 
-                    'Joint_0': [0],
-                    'Joint_1': [0],
-                    'Joint_2': [0],
-                    'Joint_3': [0],
-                    'Joint_4': [0],
-                    'Joint_5': [0],
-                    'Joint_6': [0],
-                    'Joint_7': [0]
+                    'Joint_0': [],
+                    'Joint_1': [],
+                    'Joint_2': [],
+                    'Joint_3': [],
+                    'Joint_4': [],
+                    'Joint_5': [],
+                    'Joint_6': [],
+                    'Joint_7': []
 
 		}
                 
                
                 # FITNESS:
-
-                self.fitness = self.Sensor_Data['zLight_Sensor'][-1]
-
+                #print(self.sim.dataFromPython)
+                self.fitness = sum(self.Sensor_Data['zLight_Sensor'])/len(self.Sensor_Data['zLight_Sensor'])
+                #self.fitness = self.Sensor_Data['zLight_Sensor'][-1]
                 #if self.env_tracker == 0:
                 #    self.fitness_T1 += self.Sensor_Data['zLight_Sensor'][-1]
                 #else:
                 #    self.fitness_T2 += self.Sensor_Data['zLight_Sensor'][-1]
                 
-                #if self.fitness >= 0.20:
-                #    sensor_matrix = self.Sensor_Data['Touch_Sensor0'][:, np.newaxis]
-                #    sensor_idx = sorted(self.Sensor_Data.keys())
-                #    for s in range(1,5):
-                #        sensor_matrix = np.concatenate((sensor_matrix, self.Sensor_Data[sensor_idx[s]][:, np.newaxis]), axis=1)
+                #directory = "/users/s/b/sbeaulie/robotics/pyrosim/"
+                #sensor_matrix = self.Sensor_Data['Touch_Sensor0'].reshape(-1,1)
+                #sensor_idx = sorted(self.Sensor_Data.keys())
+                #for s in range(1,5):
+                #    new_data = self.Sensor_Data[sensor_idx[s]].reshape(-1,1)
+                #    sensor_matrix = np.concatenate([sensor_matrix, new_data], axis=1)
                         #   S0     S1    S2    S3    S4    LIGHT
                         #    .      .     .     .     .      .
                         #    .      .     .     .     .      .
                         #    .      .     .     .     .      .
-                #    with open("Sensor_Data_bothTasks.txt", "a+") as sensorFile:
-                #        sensorFile.write(str(sensor_matrix.tolist()))
-                #        sensorFile.write("\n")
-
+                #sensor_df = pd.DataFrame(sensor_matrix)
+                #try:
+                #    sensor_df.to_csv("{0}Sensor_Data_T{1}.csv".format(directory, self.env_tracker + 1), mode="a", sep=",", header=None, index=None)
+                #except:
+                #    sensor_df.to_csv("{0}Sensor_Data_T{1}.csv".format(directory, self.env_tracker + 1), sep=",", header=None, index=None)
                         # Now, MOTOR DATA:
                         #   M0     M1     M2  ....
                         #    .      .      .
                         #    .      .      .
                         #    .      .      .
-                #    self.Obtain_Motor_Data()
-
-                #    motor_idx = sorted(self.Motor_Data.keys())
-                #    motor_matrix = self.Motor_Data['Joint_0'][:, np.newaxis]
-                #    for m in range(1,8):
-                #        motor_matrix = np.concatenate((motor_matrix, self.Motor_Data[motor_idx[m]][:, np.newaxis]), axis=1)
-                #    with open("Motor_Data_bothTasks.txt", "a+") as motorFile:
-                #        motorFile.write(str(motor_matrix.tolist()))
-                #        motorFile.write("\n")
-
-                #self.fitness += Sensor_Data['zLight_Sensor'][-1]
+                #self.Obtain_Motor_Data()
+                #motor_idx = sorted(self.Motor_Data.keys())
+                #motor_matrix = np.array(self.Motor_Data['Joint_0']).reshape(-1,1)
+                #for m in range(1,8):
+                #    new_data = np.array(self.Motor_Data[motor_idx[m]]).reshape(-1,1)
+                #    motor_matrix = np.concatenate([motor_matrix, new_data], axis=1)
+                #motor_df = pd.DataFrame(motor_matrix)
+                #print(motor_df)
+                #try:
+                #    motor_df.to_csv("{0}Motor_Data_T{1}.csv".format(directory, self.env_tracker + 1), mode="a", sep=",", header=None, index=None)
+                #except:
+                #    motor_df.to_csv("{0}Motor_Data_T{1}.csv".format(directory, self.env_tracker + 1), sep=",", header=None, index=None)
                 
         def Obtain_Motor_Data(self):
 
@@ -124,10 +127,8 @@ class INDIVIDUAL:
                         current_motor.append(np.tanh(summed_input))
                     else:
                         current_motor.append(np.tanh(current_motor[time-1] + summed_input))
-                    # Convert each element into an array:
-                self.Motor_Data[sorted(self.Motor_Data.keys())[motor]] = np.array(self.Motor_Data[sorted(self.Motor_Data.keys())[motor]])
-
-	def Print_Fitness(self):
+	
+        def Print_Fitness(self):
 
 		#T1 = self.fitness_T1
 		#T2 = self.fitness_T2
@@ -136,7 +137,7 @@ class INDIVIDUAL:
 		#else:
 		#    self.fitness = (min(T1,T2))
                 #self.fitness = (T1+T2)/2
-
+                #print(self.fitness)
                 return(self.fitness)
 
 	def Mutate(self):
