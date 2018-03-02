@@ -98,16 +98,24 @@ def Rank(matrices, scores):
     return(sorted_matrices, adj_scores)
 
 
-def Initialize_Tensor(population, num_envs, layer_names, l=-1.0, u=1.0):
+def Initialize_Tensor(population, num_envs, layer_names, dropout=False):
     return_list = []
     for p in range(population):
-        new_entry = dict()
+        new_entry = {str(e):{'genome':{}, 'dropout':{}} for e in range(num_envs)}
         for e in range(num_envs):
-            new_entry[str(e)] =  {"{0}to{1}".format(i,o): Generate(0,1,(i,o), l=l, u=u) for i,o in layer_names}
-        return_list.append(entry)
+            if dropout:
+                new_entry[str(e)]['genome'] =  \
+                    {"{0}to{1}".format(i,o): Generate(0,1,(i,o), l=-1.0, u=1.0) for i,o in layer_names}
+                new_entry[str(e)]['dropout'] =  \
+                    {"{0}to{1}".format(i,o): Generate(0,1,(i,o), l=0.0, u=1.0) for i,o in layer_names}
+            else:
+                new_entry[str(e)]['genome'] =  \
+                    {"{0}to{1}".format(i,o): Generate(0,1,(i,o), l=-1.0, u=1.0) for i,o in layer_names}
+                new_entry[str(e)]['dropout'] =  \
+                    {"{0}to{1}".format(i,o): np.ones((i,o)) for i,o in layer_names}
+        return_list.append(new_entry)
 
     return(return_list)
-
     
 class GA():
 
@@ -126,7 +134,8 @@ class GA():
         'devo': False,
         'dropout': False,
         'metric': 'atomic',
-        'seed': 0
+        'seed': 0,
+        'folder': 'Data'
     }    
 
     def __init__(self, parameters={}):
@@ -144,7 +153,7 @@ class GA():
         try:
             os.makedirs(new_path)
         except OSError:
-            if not os,path.isdir(new_path):
+            if not os.path.isdir(new_path):
                 raise
 
         # Set up multiprocessing:     
@@ -156,13 +165,9 @@ class GA():
             
         # Genomes now composed of dictionaries, where each entry specifies connections between layers
         if self.devo:
-
-            self.children = Initialize_Tensor(self.popsize, self.environments+1, self.layer2layer)
-            if self.dropout:
-                self.dropout = Initialize_Tensor(self.popsize, self.environments+1, self.layer2layer, l=0.0, u=1.0) 
+            self.children = Initialize_Tensor(self.popsize, self.environments+1, self.layer2layer, self.devo)
 
         else:
-
             self.children = Initialize_Tensor(self.popsize, 1, self.layer2layer)
 
         # Genomes are now lists of dictionaries. Each dictionary entry corresponds to a sheet in the genetic tensor
@@ -184,7 +189,7 @@ class GA():
                 self.champion = self.child_scores[np.argmax(self.child_scores)]
             
             # Rank scores (batch normalization):
-            self.children, self.child_scores = Rank(self.children, self.child_scores)
+            #self.children, self.child_scores = Rank(self.children, self.child_scores)
 
             # Traditional individul metric? Or population based NES metric?
             if self.metric == 'atomic':
@@ -192,6 +197,8 @@ class GA():
                 self.Spawn()
 
             elif self.metric == 'collective':
+
+                ### ========== TODO: Add dropout for Swarm ==========
 
                 self.mean_grads = dict()
                 self.std_grads = dict()
@@ -209,7 +216,7 @@ class GA():
                     self.stds[str(e)] = {}
                     for IO in self.layer2layer:
                         layer = "{0}to{1}".format(IO[0], IO[1])
-                        matrices = [c[str(e)][layer] for c in self.children]
+                        matrices = [c[str(e)]['genome'][layer] for c in self.children]
                         # Compute mean, std, and corresponding gradients:
                         a,b,c,d = Compute_Gradients(matrices, self.child_scores)
                         (self.means[str(e)][layer], self.stds[str(e)][layer],
@@ -236,16 +243,18 @@ class GA():
         for e in range(self.environments):
             schedule = [True, False]
             if self.devo:
-                base = genome[str(e+1)]
-                target = genome["0"]
+                target = genome[str(e+1)]['genome']
+                dropout = genome[str(e+1)]['dropout']
+                base = genome["0"]['genome']
                 schedule = [True, False]
             else:
                 base = genome["0"]
                 target = 0.0
+                dropout = 1.0
                 schedule = [False]
             for s in schedule:
-                agent = INDIVIDUAL(genome=base,target_genome=target,blueprint=self.layer2layer,
-                                    devo=s,gens=self.generations, g=self.g)
+                agent = INDIVIDUAL(genome=base,target_genome=target, dropout=dropout, 
+                                blueprint=self.layer2layer,devo=s, gens=self.generations, g=self.g)
 
                 agent.Start_Evaluation(milieu.envs[e], pp=False, pb=True, env_tracker=e)
                 agent.Compute_Fitness()
@@ -257,7 +266,7 @@ class GA():
        
         total_fitness = sum(fitness)/len(fitness)
 
-        if fitness[0] > 0.20 and fitness[1] > 0.20:
+        if fitness[1] > 0.20 and fitness[-1] > 0.20:
             with open("{0}/{1}/Matrices_Seed{1}.csv".format(self.directory, self.folder, self.seed), "a+") as fitfile:
                 fitfile.write(str(genome))
                 fitfile.write("\n")
@@ -270,11 +279,11 @@ class GA():
          generation
       
          """
+         print(self.child_scores)
 
          best = max(1, int(round(self.popsize*self.elitism)))
          # Keep only x percent of the "best" individuals
          best_indices = np.argsort(self.child_scores)[-best:]
-
          #Preserve(self.children[indices[-1].reshape(1,-1), "Champion_Weights_{0}.csv".format(self.seed))  
          # Populate the "parents" with the fittest individuals: 
 
@@ -284,8 +293,7 @@ class GA():
                  # Replace parent (score and genome) if better:
                  self.parent_scores[worst] = self.child_scores[i]
                  self.parents[worst] = self.children[i]
-             
-             
+           
     def Spawn(self):
         """
         After selecting for high perfoming individuals, generate a new population whose 
@@ -327,24 +335,38 @@ class GA():
                 self.children.append(child)
 
         else:
+
             while len(self.children) < self.popsize:
                 # Randomly select and copy a parent
                 parent_idx = random.choice(range(len(self.parents)))
+                #while self.parents[parent_idx] == 0:
+                #    parent_idx = random.choice(range(len(self.parents)))
+                
                 child = copy.copy(self.parents[parent_idx])
-                # Mutate copied genome
-                e = 0
+
                 if self.devo:
                     e = np.random.choice(range(self.environments+1))
-                IO = self.layer2layer[np.random.choice(range(len(self.layer2layer)))]
-                layer = "{0}to{1}".format(IO[0], IO[1])
-                i = np.random.choice(range(IO[0]))
-                o = np.random.choice(range(IO[1]))
-                # Mutate exisitng value at the above indices:
-                synapse = child[str(e)][layer][i,o]
-                child[str(e)][layer][i,o] = np.clip(np.random.normal(synapse, math.fabs(synapse)), -1.0, 1.0)
-                 
+                    d = np.random.choice(range(1, self.environments+1))
+                    
+                    child = self.Mutate(child, tensor='genome', e=e)
+                    child = self.Mutate(child, tensor='dropout', e=d, l=0.0, u=1.0)
+                else:
+                    child = self.Mutate(child)
+
                 self.children.append(child)
 
+
+    def Mutate(self, content, tensor='genome', e=0, l=-1.0, u=1.0):
+        # Mutate copied genome
+        # Randomly select layer to affect
+        IO = self.layer2layer[np.random.choice(range(len(self.layer2layer)))]
+        layer = "{0}to{1}".format(IO[0], IO[1])
+        i = np.random.choice(range(IO[0]))
+        o = np.random.choice(range(IO[1]))
+        # Mutate exisitng value at the above indices:
+        synapse = content[str(e)][tensor][layer][i,o]
+        content[str(e)][tensor][layer][i,o] = np.clip(np.random.normal(synapse, math.fabs(synapse)), l, u)
+        return(content)
 
     def New_Swarm(self, E):
 
@@ -363,3 +385,4 @@ class GA():
                     child[str(e)][layer] = Fill_Matrix(IO, _mean, _std, u_grad, s_grad, alpha)
 
             self.children.append(child)
+

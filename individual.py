@@ -11,10 +11,11 @@ import constants as c
 from robot import ROBOT
 
 class INDIVIDUAL:
-        def __init__(self, genome, target_genome, blueprint, devo, gens, g):
+        def __init__(self, genome, target_genome, dropout, blueprint, devo, gens, g):
 
                 self.genome = genome
 		self.target_genome = target_genome
+                self.dropout = dropout
                 self.devo = devo
                 self.blueprint = blueprint
                 self.gens = gens
@@ -31,7 +32,8 @@ class INDIVIDUAL:
 
 		self.env_tracker = env_tracker
                 self.sim = PYROSIM(playPaused=pp, evalTime=1000, debug=False, playBlind=pb)
-		robot = ROBOT(self.sim, self.genome, self.target_genome, self.blueprint, self.devo, self.gens, self.g)
+		robot = ROBOT(self.sim, self.genome, self.target_genome, self.dropout, 
+                                        self.blueprint, self.devo, self.gens, self.g)
                 env.Send_To(self.sim)
                 self.sim.Start()
                 # For running program in ipython, set ipy=True

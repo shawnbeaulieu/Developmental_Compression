@@ -691,8 +691,7 @@ class PYROSIM:
 										startTime=0.,endTime=0.)
 
 	def Send_Developing_Synapse(self, sourceNeuronID=0, targetNeuronID=0, 
-								startWeight=0.0, endWeight=0.0, 
-								dropTime=10.0, startTime=0., endTime=1.0):
+								startWeight=0.0, endWeight=0.0, startTime=0., endTime=1.0):
 		"""Sends a synapse to the simulator
 
 		Developing synapses are synapses which change over time. 
@@ -739,8 +738,6 @@ class PYROSIM:
 		outputString = outputString + ' ' + str(startWeight)
 
 		outputString = outputString + ' ' + str(endWeight)
-
-		outputString = outputString + ' ' + str(dropTime)
 
 		outputString = outputString + ' ' + str(startTime)
 

@@ -40,8 +40,10 @@ if __name__ == '__main__':
         'elitism': 1.0,
         'crossover': False,
         'devo': True,
-        'metric': 'collective',
-        'seed': int(sys.argv[1])
+        'dropout': True,
+        'metric': 'atomic',
+        'seed': int(sys.argv[1]),
+        'folder': 'Experiment_14_Dropout2'
     }
 
 

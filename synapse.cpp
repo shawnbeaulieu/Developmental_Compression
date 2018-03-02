@@ -15,8 +15,6 @@ SYNAPSE::SYNAPSE(void) {
 
 	std::cin >> endWeight;
 
-	std::cin >> dropTime;
-
 	std::cin >> startTime;
 
 	std::cin >> endTime;
@@ -53,8 +51,6 @@ void SYNAPSE::Print(void) {
 
         std::cerr << endWeight << " ";
 
-	std::cerr << dropTime << " ";
-
         std::cerr << startTime << " ";
 
         std::cerr << endTime << "\n";
@@ -67,8 +63,8 @@ void SYNAPSE::Update_Weight(int time){
 		weight = endWeight;
 	else if (startTime == endTime)
 		weight = endWeight;
-	else if (time >= dropTime)
-		weight = 0.0
+	else if (time >= endTime)
+                weight = 0.0;
 	else
 	{
 		double startRatio = 1.-(time-startTime)/double(endTime-startTime);

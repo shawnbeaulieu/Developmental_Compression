@@ -9,7 +9,7 @@ import numpy as np
 import math
 
 class ROBOT:
-    def __init__(self, sim, genome, target_genome, blueprint, devo, gens, g):
+    def __init__(self, sim, genome, target_genome, dropout, blueprint, devo, gens, g):
         # call the method from the constructor the way you would in another script.
         # "SELF" is the generic name given as input to the constructor by the user
         # at a different time and location.
@@ -21,7 +21,7 @@ class ROBOT:
             self.Send_Deep_Neurons(sim, blueprint)
         else:
             self.Send_Neurons(sim, blueprint)
-        self.Send_Synapses(sim, genome, target_genome, blueprint, devo, gens, g)
+        self.Send_Synapses(sim, genome, target_genome, dropout, blueprint, devo, gens, g)
         #self.Send_Synapses(sim, genome, inflection, devo)
 
     def Send_Objects(self, sim):
@@ -109,7 +109,7 @@ class ROBOT:
                         # Create synapses (developmental)
                         sim.Send_Developing_Synapse(sourceNeuronID=I+ID_tracker-b[0], targetNeuronID=O+ID_tracker,
 			    		startWeight=genome[layer][I,O], endWeight=target_genome[layer][I,O],
-						dropTime=dropout[layer][I,O], startTime=0.0, endTime=1.0)
+						startTime=0.0, endTime=dropout[layer][I,O])
                     else:
                         # Create synapses (non-developmental)
                         sim.Send_Synapse(sourceNeuronID=I, targetNeuronID=O+ID_tracker, weight = genome[layer][I,O])
