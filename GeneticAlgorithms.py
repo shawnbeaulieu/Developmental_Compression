@@ -279,8 +279,6 @@ class GA():
          generation
       
          """
-         print(self.child_scores)
-
          best = max(1, int(round(self.popsize*self.elitism)))
          # Keep only x percent of the "best" individuals
          best_indices = np.argsort(self.child_scores)[-best:]
