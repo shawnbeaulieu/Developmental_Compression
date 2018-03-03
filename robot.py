@@ -94,7 +94,7 @@ class ROBOT:
 
     def Send_Synapses(self, sim, genome, target_genome, dropout, blueprint, devo, gens, g):
         # Establish connection between sensor neurons and motor neurons
-        devo_step = 1/gens
+        #devo_step = 1/gens
         #endTime = np.clip(1.0-devo_step*g, 0, 1)
         ID_tracker = 0 # Neuron ID
         for b in blueprint:

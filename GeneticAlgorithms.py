@@ -42,7 +42,13 @@ def Preserve(data, filename):
         # If no such file exists (new experiment) create it:
         df_data.to_csv(filename, sep=",", header=None, index=None)
 
-def Generate(mean, std, dimensions, l=-1.0, u=1.0):
+def Generate(mean, std, dimensions, tensor):
+    if tensor == 'genome':
+        l = -1.0
+        u = 1.0
+    elif tensor == 'dropout':
+        l = 0.0
+        u = 1.0
     return(np.clip(np.random.normal(mean, std, dimensions), l, u))
 
 def Mean_Gradient(z, u, s):
@@ -104,19 +110,43 @@ def Initialize_Tensor(population, num_envs, layer_names, dropout=False):
         new_entry = {str(e):{'genome':{}, 'dropout':{}} for e in range(num_envs)}
         for e in range(num_envs):
             if dropout:
-                new_entry[str(e)]['genome'] =  \
-                    {"{0}to{1}".format(i,o): Generate(0,1,(i,o), l=-1.0, u=1.0) for i,o in layer_names}
-                new_entry[str(e)]['dropout'] =  \
-                    {"{0}to{1}".format(i,o): Generate(0,1,(i,o), l=0.0, u=1.0) for i,o in layer_names}
+                for tensor in new_entry[str(e)].keys():
+                    new_entry[str(e)][tensor] =  \
+                        {"{0}to{1}".format(i,o): Generate(0,1,(i,o), tensor) for i,o in layer_names}
+            # Remove dropout for oth environment (no development)
+                new_entry['0']['dropout'] = {}
             else:
                 new_entry[str(e)]['genome'] =  \
-                    {"{0}to{1}".format(i,o): Generate(0,1,(i,o), l=-1.0, u=1.0) for i,o in layer_names}
-                new_entry[str(e)]['dropout'] =  \
-                    {"{0}to{1}".format(i,o): np.ones((i,o)) for i,o in layer_names}
+                    {"{0}to{1}".format(i,o): Generate(0,1,(i,o), tensor='genome') for i,o in layer_names}
+        
         return_list.append(new_entry)
 
     return(return_list)
     
+def Inspect_Swarm(E, children, scores, layer2layer, tensor):
+    mean_grads = dict()
+    std_grads = dict()
+    means = dict()
+    stds = dict()
+
+    for e in E:
+
+        mean_grads[str(e)] = {}
+        std_grads[str(e)] = {}
+        means[str(e)] = {}
+        stds[str(e)] = {}
+        for IO in layer2layer:
+            layer = "{0}to{1}".format(IO[0], IO[1])
+            matrices = [c[str(e)][tensor][layer] for c in children]
+            # Compute mean, std, and corresponding gradients:
+            a,b,c,d = Compute_Gradients(matrices, scores)
+
+            (means[str(e)][layer], stds[str(e)][layer],
+                mean_grads[str(e)][layer], std_grads[str(e)][layer]) = (a,b,c,d)
+
+    return(means, stds, mean_grads, std_grads)
+
+
 class GA():
 
     """
@@ -188,9 +218,6 @@ class GA():
             if self.child_scores[np.argmax(self.child_scores)] > self.champion:
                 self.champion = self.child_scores[np.argmax(self.child_scores)]
             
-            # Rank scores (batch normalization):
-            #self.children, self.child_scores = Rank(self.children, self.child_scores)
-
             # Traditional individul metric? Or population based NES metric?
             if self.metric == 'atomic':
                 self.Selection()
@@ -198,31 +225,26 @@ class GA():
 
             elif self.metric == 'collective':
 
-                ### ========== TODO: Add dropout for Swarm ==========
-
-                self.mean_grads = dict()
-                self.std_grads = dict()
-                self.means = dict()
-                self.stds = dict()
+                # Rank scores (batch normalization):
+                self.children, self.child_scores = Rank(self.children, self.child_scores)
 
                 if self.devo:
-                    E = self.environments + 1 
+                    E = self.environments+1
                 else:
                     E = 1
-                for e in range(E): 
-                    self.mean_grads[str(e)] = {}
-                    self.std_grads[str(e)] = {}
-                    self.means[str(e)] = {}
-                    self.stds[str(e)] = {}
-                    for IO in self.layer2layer:
-                        layer = "{0}to{1}".format(IO[0], IO[1])
-                        matrices = [c[str(e)]['genome'][layer] for c in self.children]
-                        # Compute mean, std, and corresponding gradients:
-                        a,b,c,d = Compute_Gradients(matrices, self.child_scores)
-                        (self.means[str(e)][layer], self.stds[str(e)][layer],
-                            self.mean_grads[str(e)][layer], self.std_grads[str(e)][layer]) = (a,b,c,d)
-                # Replenish swarm                        
+
+                if self.dropout: 
+                    self.means, self.stds, self.mean_grads, self.std_grads = \
+                        Inspect_Swarm(range(E), self.children, self.child_scores, self.layer2layer, 'genome')
+                    self.d_means, self.d_stds, self.d_mean_grads, self.d_std_grads = \
+                        Inspect_Swarm(range(1,E), self.children, self.child_scores, self.layer2layer, 'dropout')
+  
+                else:
+                    self.means, self.stds, self.mean_grads, self.std_grads = \
+                        Inspect_Swarm(range(E), self.children, self.children_scores, self.layer2layer, 'genome')
+                # Replenish swarm  
                 self.New_Swarm(E)
+
                 self.g += 1
                
    
@@ -369,18 +391,36 @@ class GA():
     def New_Swarm(self, E):
 
         self.children = []
+        alpha = 0.1
         while len(self.children) < self.popsize:
             child = dict()
-            for e in range(E): 
-                child[str(e)] = {}
+            for e in range(E):
+                if self.dropout: 
+                    child[str(e)] = {'genome':{}, 'dropout':{}}
+                else:
+                    child[str(e)] = {'genome':{}}
                 for IO in self.layer2layer:
                     layer = "{0}to{1}".format(IO[0], IO[1])
-                    u_grad = self.mean_grads[str(e)][layer]
-                    s_grad = self.mean_grads[str(e)][layer]
-                    _mean = self.means[str(e)][layer]
-                    _std = self.stds[str(e)][layer]
-                    alpha = 0.1
-                    child[str(e)][layer] = Fill_Matrix(IO, _mean, _std, u_grad, s_grad, alpha)
+                    if self.dropout:
+
+                        for tensor in child[str(e)].keys():
+                            u_grad, s_grad, _mean, _std = self.Get_Particle_Data(IO, layer, e, tensor)
+                            try:
+                                child[str(e)][tensor][layer] = Fill_Matrix(IO, _mean, _std, u_grad, s_grad, alpha)
+                            except KeyError:
+                                next
+                    else:
+                        u_grad, s_grad, _mean, _std = self.Get_Particle_Data(IO, layer, e, 'genome')
+                        child[str(e)]['genome'][layer] = Fill_Matrix(IO, _mean, _std, u_grad, s_grad, alpha)
+
 
             self.children.append(child)
+
+    def Get_Particle_Data(self, IO, layer, e, tensor):
+        
+        u_grad = self.mean_grads[str(e)][layer]
+        s_grad = self.mean_grads[str(e)][layer]
+        _mean = self.means[str(e)][layer]
+        _std = self.stds[str(e)][layer]
+        return(u_grad, s_grad, _mean, _std)
 
