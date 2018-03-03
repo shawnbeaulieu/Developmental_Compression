@@ -199,7 +199,6 @@ class GA():
 
         else:
             self.children = Initialize_Tensor(self.popsize, 1, self.layer2layer)
-
         # Genomes are now lists of dictionaries. Each dictionary entry corresponds to a sheet in the genetic tensor
         # For every sheet there is a network defined by self.blueprint
         # Mutation first randomly selects a sheet, then randomly selects a layer, then randomly selects a synapse      
@@ -402,13 +401,14 @@ class GA():
                 for IO in self.layer2layer:
                     layer = "{0}to{1}".format(IO[0], IO[1])
                     if self.dropout:
-
+                        # Remove dropout for base environment:
+                        child['0']['dropout'] = {}
                         for tensor in child[str(e)].keys():
-                            u_grad, s_grad, _mean, _std = self.Get_Particle_Data(IO, layer, e, tensor)
-                            try:
+                            if e == 0 and tensor == 'dropout':
+                                 next
+                            else:
+                                u_grad, s_grad, _mean, _std = self.Get_Particle_Data(IO, layer, e, tensor)
                                 child[str(e)][tensor][layer] = Fill_Matrix(IO, _mean, _std, u_grad, s_grad, alpha)
-                            except KeyError:
-                                next
                     else:
                         u_grad, s_grad, _mean, _std = self.Get_Particle_Data(IO, layer, e, 'genome')
                         child[str(e)]['genome'][layer] = Fill_Matrix(IO, _mean, _std, u_grad, s_grad, alpha)
