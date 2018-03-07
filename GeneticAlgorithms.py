@@ -107,9 +107,10 @@ def Rank(matrices, scores):
 def Initialize_Tensor(population, num_envs, layer_names, dropout=False):
     return_list = []
     for p in range(population):
-        new_entry = {str(e):{'genome':{}, 'dropout':{}} for e in range(num_envs)}
+        new_entry = {str(e):{'genome':{}} for e in range(num_envs)}
         for e in range(num_envs):
             if dropout:
+                new_entry[str(e)]['dropout'] = {}
                 for tensor in new_entry[str(e)].keys():
                     new_entry[str(e)][tensor] =  \
                         {"{0}to{1}".format(i,o): Generate(0,1,(i,o), tensor) for i,o in layer_names}
@@ -195,10 +196,10 @@ class GA():
             
         # Genomes now composed of dictionaries, where each entry specifies connections between layers
         if self.devo:
-            self.children = Initialize_Tensor(self.popsize, self.environments+1, self.layer2layer, self.devo)
+            self.children = Initialize_Tensor(self.popsize, self.environments+1, self.layer2layer, self.dropout)
 
         else:
-            self.children = Initialize_Tensor(self.popsize, 1, self.layer2layer)
+            self.children = Initialize_Tensor(self.popsize, 1, self.layer2layer, self.dropout)
         # Genomes are now lists of dictionaries. Each dictionary entry corresponds to a sheet in the genetic tensor
         # For every sheet there is a network defined by self.blueprint
         # Mutation first randomly selects a sheet, then randomly selects a layer, then randomly selects a synapse      
@@ -244,7 +245,7 @@ class GA():
                 # Replenish swarm  
                 self.New_Swarm(E)
 
-                self.g += 1
+            self.g += 1
                
    
         print("End of evolution: High Score = {0}".format(self.champion))
@@ -259,30 +260,44 @@ class GA():
         #base = genome["0"]
         # Establish environments
         milieu = ENVIRONMENTS()
+
+        w_static = float(self.g)/self.generations
+        w_devo = 1.0 - float(self.g)/self.generations)
         # Create individual
         fitness = []
+        archive = []
         for e in range(self.environments):
-            schedule = [True, False]
+
+            e_score = []
             if self.devo:
                 target = genome[str(e+1)]['genome']
-                dropout = genome[str(e+1)]['dropout']
+                if self.dropout:
+                    dropout = genome[str(e+1)]['dropout']
+                else:
+                    dropout = 10.0
                 base = genome["0"]['genome']
                 schedule = [True, False]
             else:
                 base = genome["0"]
                 target = 0.0
-                dropout = 1.0
+                dropout = 10.0
                 schedule = [False]
+
             for s in schedule:
                 agent = INDIVIDUAL(genome=base,target_genome=target, dropout=dropout, 
                                 blueprint=self.layer2layer,devo=s, gens=self.generations, g=self.g)
 
                 agent.Start_Evaluation(milieu.envs[e], pp=False, pb=True, env_tracker=e)
                 agent.Compute_Fitness()
-                fitness += [agent.Print_Fitness()]
+                score = agent.Print_Fitness()
+                e_score += [score]
+                archive += [score]
+
+            fitness += [e_score[0]*w_devo]
+            fitness += [e_score[1]*w_static]      
 
         with open("{0}/{1}/Fitness_History_Seed{2}.csv".format(self.directory, self.folder, self.seed), "a+") as fitfile:
-            fitfile.write(",".join([str(f) for f in fitness]))
+            fitfile.write(",".join([str(f) for f in archive]))
             fitfile.write("\n")
        
         total_fitness = sum(fitness)/len(fitness)
@@ -291,6 +306,7 @@ class GA():
             with open("{0}/{1}/Matrices_Seed{1}.csv".format(self.directory, self.folder, self.seed), "a+") as fitfile:
                 fitfile.write(str(genome))
                 fitfile.write("\n")
+
         return(total_fitness)
 
     def Selection(self):
@@ -363,7 +379,7 @@ class GA():
                 
                 child = copy.copy(self.parents[parent_idx])
 
-                if self.devo:
+                if self.dropout:
                     e = np.random.choice(range(self.environments+1))
                     d = np.random.choice(range(1, self.environments+1))
                     

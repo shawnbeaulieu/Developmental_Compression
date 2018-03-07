@@ -109,7 +109,7 @@ class ROBOT:
                         # Create synapses (developmental)
                         sim.Send_Developing_Synapse(sourceNeuronID=I+ID_tracker-b[0], targetNeuronID=O+ID_tracker,
 			    		startWeight=genome[layer][I,O], endWeight=target_genome[layer][I,O],
-						startTime=0.0, endTime=dropout[layer][I,O])
+						startTime=0.0, endTime=1.0)
                     else:
                         # Create synapses (non-developmental)
                         sim.Send_Synapse(sourceNeuronID=I, targetNeuronID=O+ID_tracker, weight = genome[layer][I,O])

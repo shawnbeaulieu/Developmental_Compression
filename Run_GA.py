@@ -33,17 +33,17 @@ if __name__ == '__main__':
     directory = os.getcwd()
     Parameters = {
 
-        'popsize': 50,
+        'popsize': 200,
         'generations': 1000,
         'blueprint': [5,8],
         'environments': 2,
         'elitism': 1.0,
         'crossover': False,
         'devo': True,
-        'dropout': True,
-        'metric': 'collective',
+        'dropout': False,
+        'metric': 'atomic',
         'seed': int(sys.argv[1]),
-        'folder': 'Experiment_15_DropoutSwarm'
+        'folder': 'Experiment_17_Weighted'
     }
 
 
