@@ -21,6 +21,7 @@ class ROBOT:
             self.Send_Deep_Neurons(sim, blueprint)
         else:
             self.Send_Neurons(sim, blueprint)
+
         self.Send_Synapses(sim, genome, target_genome, dropout, blueprint, devo, gens, g)
         #self.Send_Synapses(sim, genome, inflection, devo)
 
@@ -106,7 +107,7 @@ class ROBOT:
                     if devo:
                         # Development schedule depends on proximity of base to target
                         #inflection = np.clip(np.sqrt((target_genome[layer] - genome[layer])**2),0,1)
-                        # Create synapses (developmental)
+                        # Create synapses (developmental) I + ID_Tracker - b[0]
                         sim.Send_Developing_Synapse(sourceNeuronID=I+ID_tracker-b[0], targetNeuronID=O+ID_tracker,
 			    		startWeight=genome[layer][I,O], endWeight=target_genome[layer][I,O],
 						startTime=0.0, endTime=1.0)

@@ -13,7 +13,7 @@ xyz=[0.8317,-0.9817,0.8000];
 
 L = 0.1 #For the construction of robots
 R = L/5 #See above
-evalTime = 500
+evalTime = 1000
 popSize = 10
 numGens = 100
 numEnvs = 4

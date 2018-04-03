@@ -34,16 +34,16 @@ if __name__ == '__main__':
     Parameters = {
 
         'popsize': 200,
-        'generations': 1000,
+        'generations': 200,
         'blueprint': [5,8],
         'environments': 2,
         'elitism': 1.0,
         'crossover': False,
-        'devo': True,
+        'devo': False,
         'dropout': False,
         'metric': 'atomic',
         'seed': int(sys.argv[1]),
-        'folder': 'Experiment_17_Weighted'
+        'folder': 'Experiment_19_CTRL'
     }
 
 

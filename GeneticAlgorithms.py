@@ -217,12 +217,11 @@ class GA():
             # Find new champion
             if self.child_scores[np.argmax(self.child_scores)] > self.champion:
                 self.champion = self.child_scores[np.argmax(self.child_scores)]
-            
+                       
             # Traditional individul metric? Or population based NES metric?
             if self.metric == 'atomic':
                 self.Selection()
                 self.Spawn()
-
             elif self.metric == 'collective':
 
                 # Rank scores (batch normalization):
@@ -260,16 +259,16 @@ class GA():
         #base = genome["0"]
         # Establish environments
         milieu = ENVIRONMENTS()
-
-        w_static = float(self.g)/self.generations
-        w_devo = 1.0 - float(self.g)/self.generations)
         # Create individual
         fitness = []
         archive = []
         for e in range(self.environments):
 
             e_score = []
+
             if self.devo:
+                w_static = float(self.g)/self.generations
+                w_devo = 1.0 - float(self.g)/self.generations
                 target = genome[str(e+1)]['genome']
                 if self.dropout:
                     dropout = genome[str(e+1)]['dropout']
@@ -278,7 +277,9 @@ class GA():
                 base = genome["0"]['genome']
                 schedule = [True, False]
             else:
-                base = genome["0"]
+                w_static = 1.0
+                w_devo = 1.0
+                base = genome["0"]['genome']
                 target = 0.0
                 dropout = 10.0
                 schedule = [False]
@@ -290,17 +291,18 @@ class GA():
                 agent.Start_Evaluation(milieu.envs[e], pp=False, pb=True, env_tracker=e)
                 agent.Compute_Fitness()
                 score = agent.Print_Fitness()
-                e_score += [score]
+                fitness += [score]
                 archive += [score]
 
-            fitness += [e_score[0]*w_devo]
-            fitness += [e_score[1]*w_static]      
-
+            #for f in range(len(e_score)):
+            #    weight = [w_devo, w_static][f]
+            #    fitness += [e_score[f]*weight]
+        
         with open("{0}/{1}/Fitness_History_Seed{2}.csv".format(self.directory, self.folder, self.seed), "a+") as fitfile:
             fitfile.write(",".join([str(f) for f in archive]))
             fitfile.write("\n")
        
-        total_fitness = sum(fitness)/len(fitness)
+        total_fitness = np.mean(fitness)
 
         if fitness[1] > 0.20 and fitness[-1] > 0.20:
             with open("{0}/{1}/Matrices_Seed{1}.csv".format(self.directory, self.folder, self.seed), "a+") as fitfile:
@@ -316,6 +318,7 @@ class GA():
          generation
       
          """
+ 
          best = max(1, int(round(self.popsize*self.elitism)))
          # Keep only x percent of the "best" individuals
          best_indices = np.argsort(self.child_scores)[-best:]
@@ -328,6 +331,10 @@ class GA():
                  # Replace parent (score and genome) if better:
                  self.parent_scores[worst] = self.child_scores[i]
                  self.parents[worst] = self.children[i]
+         #for i in range(self.popsize):
+         #    if self.child_scores[i] > self.parent_scores[i]:
+         #        self.parent_scores[i] = self.child_scores[i]
+         #        self.parents[i] = self.children[i]
            
     def Spawn(self):
         """
@@ -374,10 +381,7 @@ class GA():
             while len(self.children) < self.popsize:
                 # Randomly select and copy a parent
                 parent_idx = random.choice(range(len(self.parents)))
-                #while self.parents[parent_idx] == 0:
-                #    parent_idx = random.choice(range(len(self.parents)))
-                
-                child = copy.copy(self.parents[parent_idx])
+                child = copy.deepcopy(self.parents[parent_idx])
 
                 if self.dropout:
                     e = np.random.choice(range(self.environments+1))

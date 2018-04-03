@@ -63,8 +63,6 @@ void SYNAPSE::Update_Weight(int time){
 		weight = endWeight;
 	else if (startTime == endTime)
 		weight = endWeight;
-	else if (time >= endTime)
-                weight = 0.0;
 	else
 	{
 		double startRatio = 1.-(time-startTime)/double(endTime-startTime);
